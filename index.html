@@ -726,10 +726,10 @@ footer a:hover{color:var(--cyan)}
         </ul>
       </div>
       <!--
-        FORM SET-UP: set data-endpoint to your form service URL (e.g. Formspree, Web3Forms, Basin or your own API).
+        FORM SET-UP: set data-endpoint to your Google Apps Script Web App URL (ends in /exec). Submissions go to the Google Sheet.
         If left empty, the form opens the visitor's email app with the enquiry pre-filled to hello@nextstepautomate.com.
       -->
-      <form class="form reveal d1" id="contactForm" data-endpoint="https://script.google.com/a/macros/nextstepautomate.com/s/AKfycbxdxnnkMb_35V6l8-z1Xlcg-TuW-Q2Z6aAKQw0Q5hltdXUvE1nVmT8TB8iY9VKY7Dn0-w/exec" novalidate>
+      <form class="form reveal d1" id="contactForm" data-endpoint="https://script.google.com/macros/s/AKfycbxdxnnkMb_35V6l8-z1Xlcg-TuW-Q2Z6aAKQw0Q5hltdXUvE1nVmT8TB8iY9VKY7Dn0-w/exec" novalidate>
         <div class="form-body">
           <h3>Request a demo or send us a message</h3>
           <p>Takes less than a minute. Fields marked * are required.</p>
@@ -752,7 +752,7 @@ footer a:hover{color:var(--cyan)}
             <div class="field"><label for="fSize">Company size <span class="opt">(optional)</span></label>
               <select id="fSize" name="size"><option value="">Select</option><option>1–10 employees</option><option>11–50 employees</option><option>51–200 employees</option><option>200+ employees</option></select></div>
             <div class="field full"><label for="fMsg">What would you like to automate? *</label><textarea id="fMsg" name="message" required placeholder="e.g. We spend hours each week copying enquiries from our website into our CRM and sending follow-up emails…"></textarea><span class="err">Please tell us a little about your needs.</span></div>
-            <label class="consent"><input type="checkbox" id="fConsent" required /> <span>I agree to NextStep Automate contacting me about my enquiry. We'll never share your details. *</span></label>
+            <label class="consent"><input type="checkbox" id="fConsent" name="consent" value="Yes" required /> <span>I agree to NextStep Automate contacting me about my enquiry. We'll never share your details. *</span></label>
           </div>
           <div class="form-foot">
             <small>We usually reply within one business day.</small>
@@ -1080,7 +1080,15 @@ form.addEventListener('submit',async e=>{
   const endpoint=form.dataset.endpoint;
   const btn=$('sendBtn');btn.disabled=true;btn.style.opacity=.7;
   if(endpoint){
-    try{const r=await fetch(endpoint,{method:'POST',headers:{'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok)throw 0;form.classList.add('sent')}
+    try{
+      data.page=location.href;
+      const isGAS=endpoint.includes('script.google.com');
+      /* Google Apps Script: send as text/plain so the browser skips the CORS preflight */
+      const r=await fetch(endpoint,{method:'POST',headers:isGAS?{'Content-Type':'text/plain;charset=utf-8'}:{'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify(data)});
+      if(!r.ok)throw 0;
+      if(isGAS){const j=await r.json();if(j.result!=='success')throw 0}
+      form.classList.add('sent');form.reset();
+    }
     catch(_){btn.disabled=false;btn.style.opacity=1;alertBox('Sorry, something went wrong. Please email hello@nextstepautomate.com directly.')}
   }else{
     const body=`Name: ${data.name}\nEmail: ${data.email}\nCompany: ${data.company}\nPhone: ${data.phone||'-'}\nInterested in: ${data.interest}\nCompany size: ${data.size||'-'}\n\n${data.message}`;
